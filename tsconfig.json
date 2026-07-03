@@ -2,6 +2,7 @@
   "compilerOptions": {
     "types": ["node"],
     "module": "es2022",
+    "skipLibCheck": true,
     "target": "es2022",
     "moduleResolution": "bundler",
     "verbatimModuleSyntax": true,

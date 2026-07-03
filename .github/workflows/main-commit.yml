@@ -12,7 +12,7 @@ jobs:
       - name: setup Node.js
         uses: actions/setup-node@v6
         with:   
-          node-version: 25
+          node-version: 26
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with: 
@@ -23,3 +23,11 @@ jobs:
         run: bun run trick-tsd && bun run build
       - name: run test
         run: bun run test
+      - name: Custom benchmark with BunJS
+        run: bun tests/benchmark.ts
+      - name: Custom benchmark with NodeJS
+        run: bun x tsx tests/benchmark.ts
+      - name: Modified fast-json-stringify benchmark with Bun
+        run: bun tests/fast-json-stringify-benchmark.ts
+      - name: Modified fast-json-stringify benchmark with NodeJS
+        run: bun x tsx tests/fast-json-stringify-benchmark.ts
