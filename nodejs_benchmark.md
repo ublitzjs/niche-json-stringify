@@ -1,4 +1,5 @@
 1. bun x tsx tests/benchmark.ts
+```
 Bench 189 KB payload with safe strings
 ┌─────────┬───────────────────────────┬────────────────────┐
 │ (index) │ name                      │ throuput           │
@@ -15,8 +16,10 @@ Bench 189 KB payload with unsafe strings
 │ 0       │ 'fast-json-stringify'  │ 3365.9561674628885 │
 │ 1       │ 'niche-json-stringify' │ 5290.381487286346  │
 └─────────┴────────────────────────┴────────────────────┘
+```
 
 2. bun x tsx tests/fast-json-stringify-benchmark.ts
+```
 short array of numbers...................................: 
 	fast(77,788 ops/sec) vs niche(85,655 ops/sec) vs standard(108,168 ops/sec)
 
@@ -49,5 +52,4 @@ object with long string property.........................:
 
 object with properties of different types................: 
 	fast(2,195,924 ops/sec) vs niche(2,894,493 ops/sec) vs standard(3,383,153 ops/sec)
-
-
+```
