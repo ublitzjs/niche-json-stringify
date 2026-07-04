@@ -1,7 +1,7 @@
 import type { Static } from "typebox"
 type closureFeaturesT = {
   esc: boolean;
-  int_arr: boolean;
+  num_arr: boolean;
   bool_arr: boolean;
   str_arr: boolean
   str_arr_esc: boolean
@@ -84,8 +84,8 @@ function getArrayStringifyInternals<TSchema extends TArray>(
       body = `str_arr_esc(${variableName})`
     }
   } else if (["integer", "number"].includes(type)) {
-    features.int_arr = true;
-    body = `int_arr(${variableName})`
+    features.num_arr = true;
+    body = `num_arr(${variableName})`
   } else if (type === "boolean") {
     features.bool_arr = true;
     body = `bool_arr(${variableName})`
@@ -99,14 +99,27 @@ type TObject = { type: "object", properties: any; default?: object }
 type TArray = { type: "array", items: any; default?: any[] }
 
 /**
-* Serialise an array of integers. 
+* Serialise an array of integers in Bun.
 * */
-export function int_arr(DATA: number[]): string {
+export function num_arr_bun(DATA: number[]): string {
   var l = DATA.length;
   if(!l) return '[]'
   var result = '['+ DATA[0]
   for(var i = 1; i < l; i++){
     result+=","+DATA[i]
+  }
+  return result + ']'
+}
+/**
+* Serialise an array of integers in NodeJS. 
+* */
+export function num_arr_node(DATA: number[]): string {
+  var l = DATA.length;
+  if(!l) return '[]'
+  var result = '['+ DATA[0]
+  for(var i = 1; i < l; i++){
+    result+=",";
+    result+=DATA[i];
   }
   return result + ']'
 }
@@ -167,23 +180,22 @@ export function str_arr_bun(DATA: string[]): string {
 export function createStringify<TSchema extends TObject | TArray>(schema: TSchema, esc = FJSescape): (obj: Static<TSchema>)=>string {
   var paramName = "param"
   var closureFeatures: closureFeaturesT = {
-    esc: false, int_arr: false, bool_arr: false, str_arr: false, str_arr_esc: false
+    esc: false, num_arr: false, bool_arr: false, str_arr: false, str_arr_esc: false
   }
   var closureFeaturesMap: Record<keyof closureFeaturesT, any> = {
-    esc, int_arr, bool_arr, str_arr: "Bun" in globalThis ? str_arr_bun : str_arr_node, str_arr_esc: str_arr_esc_gen(esc)
+    esc, num_arr: "Bun" in globalThis ? num_arr_bun : num_arr_node, bool_arr, str_arr: "Bun" in globalThis ? str_arr_bun : str_arr_node, str_arr_esc: str_arr_esc_gen(esc)
   }
   var body: string
   if(schema.type == "object"){
     body = `return function fn(param){return'` + getObjectStringifyInternals(paramName, 0, closureFeatures, schema) + "'}";   
   } else {
-    if (["number", "integer"].includes(schema.items.type) && "Bun" in globalThis) {
-      return int_arr as any
+    if (["number", "integer"].includes(schema.items.type)) {
+      return ("Bun" in globalThis ? num_arr_bun : num_arr_node) as any;
     } else if(schema.items.type == "boolean") {
       return bool_arr as any;
     } else if(schema.items.type == "string") {
       if (schema.items.format == "unsafe") {
-        if("Bun" in globalThis) return str_arr_bun as any
-        else return str_arr_node as any
+        return ("Bun" in globalThis ? str_arr_bun : str_arr_node) as any;
       } else return closureFeaturesMap.str_arr_esc as any;
     } else {
       body = "return function fn(param){return " + getArrayStringifyInternals(paramName, 0, closureFeatures, schema) + "}";

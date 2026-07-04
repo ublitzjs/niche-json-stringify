@@ -15,7 +15,7 @@ import { Worker }  from 'worker_threads'
 const BENCH_THREAD_PATH = path.join(__dirname, 'fast-json-stringify-bench-thread.js')
 
 const LONG_STRING_LENGTH = 1e4
-const SHORT_ARRAY_SIZE = 10
+const SHORT_ARRAY_SIZE = 1e3
 
 const shortArrayOfNumbers = new Array(SHORT_ARRAY_SIZE)
 const shortArrayOfIntegers = new Array(SHORT_ARRAY_SIZE)
@@ -60,13 +60,18 @@ const benchmarks = [
     input: shortArrayOfIntegers
   },
   {
-    name: 'short array of short strings',
+    name: 'short array of short escaped strings',
     schema: { type: 'array', items: { type: 'string' } }, 
     input: shortArrayOfShortStrings
   },
   {
-    name: 'short array of long strings',
+    name: 'short array of long escaped strings',
     schema: { type: 'array', items: { type: 'string' } },
+    input: shortArrayOfShortStrings
+  },
+  {
+    name: 'short array of long strings',
+    schema: { type: 'array', items: { type: 'string', format: "unsafe" } },
     input: shortArrayOfShortStrings
   },
   {

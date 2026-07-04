@@ -34,10 +34,10 @@ try {
   process.exit(0)
 }
 
-bench.add("niche", () => {
-  stringify(benchmark.input)
-}).add("fast", () => {
+bench.add("fast", () => {
   stringify2(benchmark.input)
+}).add("niche", () => {
+  stringify(benchmark.input)
 }).add("standard", () => {
   JSON.stringify(benchmark.input)
 }).run().then(() => {
