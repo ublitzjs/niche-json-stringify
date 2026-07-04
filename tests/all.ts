@@ -138,4 +138,44 @@ export function testIndexModule(module: typeof import("@ublitzjs/niche-json-stri
 
   escapeThisHell("FJS escape", module, module.FJSescape);
   escapeThisHell("CJS escape", module, module.CJSescape);
+
+  describe("default values", ()=>{
+    describe("outer object", ()=>{
+      var defValue = {a: 123, b: "abc"}
+      var stringify = module.createStringify(
+        Type.Object({ a: Type.Number(), b: Type.String() }, { default: defValue })
+      );
+      it("fallback if no param", ()=>{
+        expect(stringify(undefined as any)).toBe(JSON.stringify(defValue))
+      })
+      testSerializer("no fallback if has param", stringify, defValue);
+    })
+    describe("object properties", ()=>{
+      var defValue = {
+        obj: { a: 123 },
+        array: [false],
+        num: 10.1,
+        int: 10,
+        str: "the_str",
+        bool: true
+      };
+      var stringify = module.createStringify(
+        Type.Object({
+          obj: Type.Object({ a: Type.Number() }, { default: { a: 123 } }),
+          array: Type.Array(Type.Boolean(), { default: [false] }),
+          num: Type.Number({ default: 10.1 }),
+          int: Type.Integer({ default: 10 }),
+          str: Type.String({ default: "the_str"}),
+          bool: Type.Boolean({ default: true }),
+        })
+      );
+      it("fallback if no params", ()=>{
+        expect(stringify({} as any)).toBe(JSON.stringify(defValue))
+      })
+      testSerializer("no fallback if has param", stringify, defValue);
+    })
+  })
+  testSerializer("additional properties in object", module.createStringify(Type.Object({
+    a: Type.Object({}, { additionalProperties: true })
+  })), { a: { prop: 123, prop2: "true" } } as any);
 }

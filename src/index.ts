@@ -12,9 +12,11 @@ function getObjectStringifyInternals(
   features: closureFeaturesT,
   schema: TObject
 ): string {
+  
   var body: string = "{"
   var STRING_TERNARY = (val: string, IF: string, ELSE: string)=>`'+(${val}?${IF}:${ELSE})+'`
   var isFirstKey = true;
+  
   for (const key in schema.properties) {
     if (typeof key != "string") throw new TypeError("key is not string, cannot make JSON")
     if (isFirstKey) { isFirstKey = false; } else { body += ','; }
@@ -22,20 +24,12 @@ function getObjectStringifyInternals(
     var value = schema.properties[key] as any;
     var innerVariableName = `${variableName}.${key}`;
     if (value.type == "object") { 
-      let contents: string = 
+      body+=
         value.additionalProperties 
-          ? `JSON.stringify(${innerVariableName})`
+          ? `'+JSON.stringify(${innerVariableName})+'`
           : getObjectStringifyInternals(innerVariableName, innerArrI, features, value)
-      body +=
-        value.default
-          ? STRING_TERNARY(innerVariableName, contents, JSON.stringify(value.default))
-          : contents
     } else if (value.type == "array") {
-      let contents = getArrayStringifyInternals(innerVariableName, innerArrI, features, value.items);
-      body +=
-        value.default
-          ? STRING_TERNARY(innerVariableName, contents, JSON.stringify(value.default))
-          : `'+${contents}+'`
+      body += `'+${getArrayStringifyInternals(innerVariableName, innerArrI, features, value)}+'`;
     } else if (value.type == "string") {
       if (value.format == "unsafe") {
         body +=
@@ -52,59 +46,62 @@ function getObjectStringifyInternals(
     } else if(value.type == "number" || value.type == "integer" || value.type == "boolean"){
       body +=
         value.default
-          ? STRING_TERNARY(innerVariableName, `"${innerVariableName}"`, `${JSON.stringify(value.default)}`)
+          ? STRING_TERNARY(innerVariableName, innerVariableName, String(value.default))
           : `'+(${innerVariableName})+'`
     } else {
       throw new TypeError("Currently we do not support anything different from 'object', 'array', 'string', 'boolean', 'integer', 'number'")
     }
   }
   body += '}'
-  return body;
+  return schema.default ? STRING_TERNARY(variableName, "'" + body + "'", "'" + JSON.stringify(schema.default)+ "'") : body
 }
-function getArrayStringifyInternals<TSchema extends {type: SupportedValues}>(
-  currentElementVariableName: string,
+function getArrayStringifyInternals<TSchema extends TArray>(
+  variableName: string,
   innerArrI: number,
   features: closureFeaturesT,
-  itemSchema: TSchema
+  schema: TSchema
 ): string {
+  var STRING_TERNARY = (val: string, IF: string, ELSE: string)=>`(${val}?${IF}:${ELSE})`
   var body: string
-  var type = itemSchema.type
+  var type = schema.items.type
   if(type==="object"){
     var innerArr = 'arr' + innerArrI
     body = 
       `(()=>{` 
-      + `var res='[';var f=true;var ${innerArr}=${currentElementVariableName};`
+      + `var res='[';var f=true;var ${innerArr}=${variableName};`
       + `for(let i=0;i<${innerArr}.length;i++){`
         + `res+=(f?"":",")+` 
-          + '\'' + getObjectStringifyInternals(innerArr+`[i]`, innerArrI+1, features, itemSchema as any) + '\';'
+          + '\'' + getObjectStringifyInternals(innerArr+`[i]`, innerArrI+1, features, schema.items as any) + '\';'
         + "f&&(f=false)"
       + `};return res+']'`
     + `})()`
   } else if (type === "string") {
-    if((itemSchema as any).format === "unsafe") {
+    if((schema.items as any).format === "unsafe") {
       features.str_arr = true
-      body = `str_arr(${currentElementVariableName})`
+      body = `str_arr(${variableName})`
     } else {
       features.str_arr_esc = true
-      body = `str_arr_esc(${currentElementVariableName})`
+      body = `str_arr_esc(${variableName})`
     }
   } else if (["integer", "number"].includes(type)) {
     features.int_arr = true;
-    body = `int_arr(${currentElementVariableName})`
+    body = `int_arr(${variableName})`
   } else if (type === "boolean") {
     features.bool_arr = true;
-    body = `bool_arr(${currentElementVariableName})`
+    body = `bool_arr(${variableName})`
   } else {
     //throw new Error("NO SUPPORT FOR THIS", {cause: itemSchema.type})
-    body = `JSON.stringify(${currentElementVariableName})`
+    body = `JSON.stringify(${variableName})`
   }
-  return body
+  return schema.default ? STRING_TERNARY(variableName, body, "'" + JSON.stringify(schema.default) + "'") : body
 }
-type TObject = { type: "object", properties: any }
-type TArray = { type: "array", items: any }
-type SupportedValues = 'object' | 'array' | 'string' | 'boolean' | 'integer' | 'number'
+type TObject = { type: "object", properties: any; default?: object }
+type TArray = { type: "array", items: any; default?: any[] }
 
-function int_arr(DATA: number[]): string {
+/**
+* Serialise an array of integers. 
+* */
+export function int_arr(DATA: number[]): string {
   var l = DATA.length;
   if(!l) return '[]'
   var result = '['+ DATA[0]
@@ -113,7 +110,11 @@ function int_arr(DATA: number[]): string {
   }
   return result + ']'
 }
-function bool_arr(DATA: boolean[]): string {
+/**
+* Serialise an array of boolean values.
+* The fastest in Bun for all lengths of arrays and in NodeJS for arrays with length < 20
+* */
+export function bool_arr(DATA: boolean[]): string {
   var l = DATA.length;
   if(!l) return '[]'
   var result = '['+(DATA[0]?'true':'false')
@@ -122,10 +123,18 @@ function bool_arr(DATA: boolean[]): string {
   }
   return result + ']'
 }
-function str_arr_node(DATA: string[]): string {
+/**
+* Serialise an array of strings in NodeJS without escaping characters
+* */
+export function str_arr_node(DATA: string[]): string {
   let r=DATA.join('","');return r?'["'+r+'"]':'[]'
 }
-function str_arr_esc_gen(esc: (str:string)=>string): (DATA:string[])=>string {
+/**
+* Generate a serialiser for a string[], which escapes characters.
+* Usually slower than JSON.stringify
+* @param esc escaping function, like CJSescape or FJSescape
+* */
+export function str_arr_esc_gen(esc: (str:string)=>string): (DATA:string[])=>string {
   return (DATA) => {
     var l = DATA.length;
     if (!l) return '[]'
@@ -136,7 +145,10 @@ function str_arr_esc_gen(esc: (str:string)=>string): (DATA:string[])=>string {
     return result + ']'
   }
 }
-function str_arr_bun(DATA: string[]): string {
+/**
+* Serialise an array of strings in Bun without escaping characters
+* */
+export function str_arr_bun(DATA: string[]): string {
   var l = DATA.length;
   if(!l) return '[]'
   var result = '["'+DATA[0]!+'"'
@@ -145,6 +157,13 @@ function str_arr_bun(DATA: string[]): string {
   }
   return result + ']'
 }
+/**
+* Generate a serialiser for your payload, based on a JSON schema.
+* Resuling serialiser does not validate your input.
+* All "string" input properties are escaped by default. To disable use format: "unsafe".
+* @param schema either Object schema or Array schema. Contents may vary, but supported property types are: object, array, string, number, integer, boolean. Out of special features it supports "default" (with ternary operator) for every schema and "additionalProperties" (just JSON.stringify) for object schemas.
+* @param [esc=FJSescape] escaping function for strings. Defaults to "fast-json-stringify" implementation (exported as FJSescape), but can also use "compile-json-stringify" version (see use cases) or something like JSON.escape, if it appears.
+* */
 export function createStringify<TSchema extends TObject | TArray>(schema: TSchema, esc = FJSescape): (obj: Static<TSchema>)=>string {
   var paramName = "param"
   var closureFeatures: closureFeaturesT = {
@@ -167,7 +186,7 @@ export function createStringify<TSchema extends TObject | TArray>(schema: TSchem
         else return str_arr_node as any
       } else return closureFeaturesMap.str_arr_esc as any;
     } else {
-      body = "return function fn(param){return " + getArrayStringifyInternals(paramName, 0, closureFeatures, schema.items) + "}";
+      body = "return function fn(param){return " + getArrayStringifyInternals(paramName, 0, closureFeatures, schema) + "}";
     }
   }
   var closureStringArgs: string[] = []
@@ -184,10 +203,15 @@ export function createStringify<TSchema extends TObject | TArray>(schema: TSchem
 const FJS_ESC_REGEX = /[\0-\x1f"\\\ud800-\udfff]/
 
 /**
- * This function was taken from fast-json-stringify. 
- * License allows redistribution of their code, until their initial effort is recognised
- * @description escapes all characters, incompatible with JSON specification.
- * Is a default function for "createStringify"
+ * @description
+ * escapes all characters, incompatible with JSON specification.
+ * Is a default escaping function for "createStringify"
+ * @license
+ * Copyright (c) Fastify contributors
+ * Licensed under the MIT License.
+ *
+ * Original source:
+ * https://github.com/fastify/fast-json-stringify
  **/
 export function FJSescape(str: string): string {
     const len = str.length
@@ -226,13 +250,17 @@ export function FJSescape(str: string): string {
     }
 }
 
-//const CJS_ESC_REGEX = /[\0-\x1f"\\]/
 const CJS_ESC_REGEX = /[\u0000-\u001f"\\]/;
 /**
- * This functionality was taken from compile-json-stringify. 
- * License allows redistribution of their code, until their initial effort is recognised
- * @description escapes most characters (without UTF-16 surrogates), incompatible with JSON specification.
- * Using with "createStringify" adds a certain speedup, but do not use it whe serialising client-side data.
+ * @description 
+ * escapes most characters (except UTF-16 surrogates), incompatible with JSON specification.
+ * Using with "createStringify" adds a certain speedup, but might not work for all client-side data.
+ * @license
+ * Copyright (c) Nathan Woltman 2018
+ * Licensed under the MIT License.
+ *
+ * Original source:
+ * https://github.com/nwoltman/compile-json-stringify
  **/
 export function CJSescape(str: string): string {
   return CJS_ESC_REGEX.test(str) ? JSON.stringify(str) : '"' + str + '"'
