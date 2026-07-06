@@ -118,7 +118,7 @@ You can supply another escaping function, for example the one from [**compile-js
 import {
   createStringify,
   CJSescape,
-} from "your-package";
+} from "@ublitzjs/niche-json-stringify";
 
 const stringify = createStringify(User, CJSescape);
 ```
@@ -133,7 +133,7 @@ import {
   bool_arr,
   str_arr_node,
   str_arr_bun,
-} from "your-package";
+} from "@ublitzjs/niche-json-stringify";
 
 int_arr([1, 2, 3]);
 // "[1,2,3]"
