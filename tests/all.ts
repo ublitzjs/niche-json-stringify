@@ -11,6 +11,7 @@ function testSerializer<T>(
     expect(stringify(value)).toBe(JSON.stringify(value));
   });
 }
+console.log("Bun" in globalThis ? "Testing NodeJS" : "Testing Bun")
 function escapeThisHell(version: string, module: typeof import("@ublitzjs/niche-json-stringify"), escape: (str: string) => string) {
   function ver(param: string) { return version + " - " + param }
   var stringify = module.createStringify(Type.Object({s: Type.String()}), escape)
@@ -36,18 +37,6 @@ function escapeThisHell(version: string, module: typeof import("@ublitzjs/niche-
   });
 }
 export function testIndexModule(module: typeof import("@ublitzjs/niche-json-stringify")) {
-  describe("HUGE 2KB input", () => {
-    var stringify = module.createStringify(BenchmarkSchema({format: "safe"}))
-    expect(stringify([benchmarkValue, benchmarkValue]), JSON.stringify([benchmarkValue, benchmarkValue]))
-    it("is deterministic", () => {
-      const a = module.createStringify(BenchmarkSchema({format: "safe"}))([benchmarkValue]);
-      const b = module.createStringify(BenchmarkSchema({format: "safe"}))([benchmarkValue]);
-      const c = module.createStringify(BenchmarkSchema({format: "safe"}))([benchmarkValue]);
-
-      expect(a).toBe(b);
-      expect(b).toBe(c);
-    });
-  })
   describe("arrays", () => {
     testSerializer(
       "empty string array",
@@ -178,4 +167,16 @@ export function testIndexModule(module: typeof import("@ublitzjs/niche-json-stri
   testSerializer("additional properties in object", module.createStringify(Type.Object({
     a: Type.Object({}, { additionalProperties: true })
   })), { a: { prop: 123, prop2: "true" } } as any);
+  describe("HUGE 2KB input", () => {
+    var stringify = module.createStringify(BenchmarkSchema({format: "safe"}))
+    expect(stringify([benchmarkValue, benchmarkValue]), JSON.stringify([benchmarkValue, benchmarkValue]))
+    it("is deterministic", () => {
+      const a = module.createStringify(BenchmarkSchema({format: "safe"}))([benchmarkValue]);
+      const b = module.createStringify(BenchmarkSchema({format: "safe"}))([benchmarkValue]);
+      const c = module.createStringify(BenchmarkSchema({format: "safe"}))([benchmarkValue]);
+
+      expect(a).toBe(b);
+      expect(b).toBe(c);
+    });
+  })
 }
