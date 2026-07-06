@@ -29,10 +29,10 @@ bun add @ublitzjs/niche-json-stringify
 
 ## Quick start
 
-Generate a specialized serializer from a JSON Schema (or a TypeBox schema). The generated function **does not validate** its input—it assumes the data already matches the schema.
+Generate a specialized serializer from a JSON Schema (or a TypeBox schema). The generated function **does not validate** its input - it assumes the data already matches the schema.
 
 ```ts
-import { Type, Static } from "@sinclair/typebox";
+import { Type } from "@sinclair/typebox";
 import { createStringify } from "@ublitzjs/niche-json-stringify";
 
 const User = Type.Object({
@@ -41,8 +41,6 @@ const User = Type.Object({
   admin: Type.Optional(Type.Boolean({ default: false })),
   tags: Type.Array(Type.String(), { default: [] }),
 });
-
-type User = Static<typeof User>;
 
 const stringify = createStringify(User);
 
@@ -92,12 +90,12 @@ const stringify = createStringify(LogEntry);
 ### Additional properties
 
 `additionalProperties` is supported. Unknown properties are serialized using `JSON.stringify`.
-
+However, it does not work with `default` values or with and outer object - only properties.
 ```ts
-const Payload = Type.Object(
-  { id: Type.Integer() },
-  { additionalProperties: true }
-);
+const Payload = Type.Object({
+  id: Type.Integer(),
+  extra: Type.Object({}, { additionalProperties: true }) 
+});
 
 const stringify = createStringify(Payload);
 
@@ -126,24 +124,31 @@ const stringify = createStringify(User, CJSescape);
 ### Specialized array serializers
 
 For hot paths, the package also exports highly optimized serializers for common array types.
+Internally they are used when array has certain size and replaced with `JSON.stringify` when fed a huge one.
 
 ```ts
 import {
-  int_arr,
-  bool_arr,
+  num_arr_node,
+  num_arr_bun,
+  bool_arr_bun,
+  bool_arr_node,
   str_arr_node,
   str_arr_bun,
 } from "@ublitzjs/niche-json-stringify";
 
-int_arr([1, 2, 3]);
+int_arr_node([1, 2, 3]);
+int_arr_bun([1, 2, 3]);
 // "[1,2,3]"
 
-bool_arr([true, false]);
+// look for use cases
+bool_arr_node([true, false]);
+bool_arr_bun([true, false]);
 // "[true,false]"
 
 // optimised non-escaping serialisers
 str_arr_node(["a", "b"]);
 str_arr_bun(["a", "b"]);
+// "[\"a\",\"b\"]"
 ```
 
 > **Note:** Generated serializers prioritize speed over safety. They do **not** validate input, so invalid data may produce invalid JSON or incorrect output. Validate your data before serialization if necessary.
