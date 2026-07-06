@@ -6,8 +6,6 @@ Inspired by [fast-json-stringify](https://github.com/fastify/fast-json-stringify
 
 ![μBlitz.js](https://github.com/ublitzjs/core/blob/main/logo.png)
 
-Built for performance-critical applications, it minimizes creation overhead and leverages an optimized swap-and-pop strategy to achieve **$O(1)$ unsubscription times** for unique listeners.
-
 ## Features
 
 - **No Dependencies:** Works in NodeJS, Bun and a Web browser
@@ -35,7 +33,7 @@ Generate a specialized serializer from a JSON Schema (or a TypeBox schema). The 
 
 ```ts
 import { Type, Static } from "@sinclair/typebox";
-import { createStringify } from "your-package";
+import { createStringify } from "@ublitzjs/niche-json-stringify";
 
 const User = Type.Object({
   id: Type.Integer(),
